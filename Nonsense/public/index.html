@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>废话过滤器</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --panel: rgba(15, 23, 42, 0.78);
+        --line: rgba(148, 163, 184, 0.2);
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --good: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, Helvetica, sans-serif;
+        background: radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #020617 100%);
+        color: var(--text);
+      }
+
+      .wrap {
+        width: min(920px, calc(100% - 32px));
+        margin: 48px auto;
+      }
+
+      .hero {
+        margin-bottom: 24px;
+      }
+
+      .tag {
+        display: inline-block;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--accent);
+        background: rgba(56, 189, 248, 0.08);
+        font-size: 14px;
+      }
+
+      h1 {
+        margin: 18px 0 10px;
+        font-size: clamp(32px, 5vw, 56px);
+        line-height: 1.05;
+      }
+
+      .sub {
+        max-width: 700px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.7;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        backdrop-filter: blur(14px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+
+      .composer {
+        padding: 20px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(2, 6, 23, 0.75);
+        color: var(--text);
+        font-size: 17px;
+        line-height: 1.7;
+        outline: none;
+      }
+
+      textarea:focus {
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 14px;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #38bdf8, #6366f1);
+        color: white;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.7;
+        cursor: wait;
+      }
+
+      .results {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+
+      .score {
+        font-size: 48px;
+        font-weight: 800;
+      }
+
+      .score.good {
+        color: var(--good);
+      }
+
+      .score.warn {
+        color: var(--warn);
+      }
+
+      .score.bad {
+        color: var(--bad);
+      }
+
+      .mirror {
+        margin-top: 18px;
+        padding: 18px 20px;
+        font-size: 18px;
+        line-height: 1.7;
+      }
+
+      .footer-note {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .error {
+        margin-top: 14px;
+        color: #fca5a5;
+        min-height: 22px;
+      }
+
+      .status {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+        min-height: 20px;
+      }
+
+      @media (max-width: 760px) {
+        .wrap {
+          margin: 24px auto;
+        }
+
+        .results {
+          grid-template-columns: 1fr;
+        }
+
+        .actions {
+          flex-direction: column;
+          align-items: stretch;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <div class="tag">废话过滤器</div>
+        <h1>帮你判断<br />一句话值不值得说</h1>
+        <div class="sub">
+          不是 AI 帮你改文案。只是帮你照镜子。现在由 DeepSeek 负责判断，没配密钥时会自动使用本地规则继续工作。
+        </div>
+      </section>
+
+      <section class="panel composer">
+        <textarea id="textInput" placeholder="把你准备发出去的消息、朋友圈或评论粘贴进来。"></textarea>
+        <div class="actions">
+          <div class="hint">发出去之前，先让它替你看一眼。</div>
+          <button id="analyzeButton">照一下镜子</button>
+        </div>
+        <div id="error" class="error"></div>
+        <div id="status" class="status"></div>
+      </section>
+
+      <section class="results">
+        <div class="panel card">
+          <div class="label">有用吗</div>
+          <div id="usefulScore" class="score">-</div>
+        </div>
+        <div class="panel card">
+          <div class="label">会惹事吗</div>
+          <div id="troubleScore" class="score">-</div>
+        </div>
+        <div class="panel card">
+          <div class="label">明天看会后悔吗</div>
+          <div id="regretTomorrow" class="score">-</div>
+        </div>
+      </section>
+
+      <section id="mirror" class="panel mirror">
+        先输入一句话，再看它是不是值得发。
+      </section>
+
+      <div class="footer-note">
+        它不会替你表达，只会帮你确认：这句话是在沟通，还是在发泄。
+      </div>
+    </main>
+
+    <script>
+      const analyzeButton = document.getElementById('analyzeButton');
+      const textInput = document.getElementById('textInput');
+      const usefulScore = document.getElementById('usefulScore');
+      const troubleScore = document.getElementById('troubleScore');
+      const regretTomorrow = document.getElementById('regretTomorrow');
+      const mirror = document.getElementById('mirror');
+      const error = document.getElementById('error');
+      const status = document.getElementById('status');
+
+      function setScoreStyle(element, value, reverse) {
+        element.className = 'score';
+        if (value === '-' || value === '是' || value === '否') {
+          if (value === '是') {
+            element.classList.add('bad');
+          }
+          if (value === '否') {
+            element.classList.add('good');
+          }
+          return;
+        }
+
+        const number = Number(value);
+        if ((!reverse && number >= 7) || (reverse && number <= 4)) {
+          element.classList.add('good');
+        } else if ((!reverse && number >= 4) || (reverse && number <= 7)) {
+          element.classList.add('warn');
+        } else {
+          element.classList.add('bad');
+        }
+      }
+
+      async function analyze() {
+        const text = textInput.value.trim();
+        error.textContent = '';
+        status.textContent = '';
+
+        if (!text) {
+          error.textContent = '先输入一句你想发出去的话。';
+          return;
+        }
+
+        analyzeButton.disabled = true;
+        analyzeButton.textContent = '正在照镜子...';
+
+        try {
+          const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || '分析失败');
+          }
+
+          usefulScore.textContent = data.usefulScore;
+          troubleScore.textContent = data.troubleScore;
+          regretTomorrow.textContent = data.regretTomorrow;
+          mirror.textContent = data.mirror;
+          status.textContent = data.source === 'deepseek' ? '本次结果由 DeepSeek 生成。' : '未检测到可用 DeepSeek 配置，当前为本地规则结果。';
+
+          setScoreStyle(usefulScore, data.usefulScore, false);
+          setScoreStyle(troubleScore, data.troubleScore, true);
+          setScoreStyle(regretTomorrow, data.regretTomorrow, false);
+        } catch (err) {
+          error.textContent = err.message || '分析失败，请稍后再试。';
+        } finally {
+          analyzeButton.disabled = false;
+          analyzeButton.textContent = '照一下镜子';
+        }
+      }
+
+      analyzeButton.addEventListener('click', analyze);
+      textInput.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          analyze();
+        }
+      });
+    </script>
+  </body>
+</html>
